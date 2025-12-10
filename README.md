@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="logo.png" alt="Talking SWR Meter Logo" width="300">
+</p>
+
+
 # Accessible Talking SWR Meter (ESP32-S3)
 ### A speech-guided SWR and RF power meter for blind and visually impaired amateur radio operators
 
