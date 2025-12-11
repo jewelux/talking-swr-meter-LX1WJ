@@ -1,0 +1,43 @@
+Talking SWR Meter – Bill of Materials (BOM)
+Version 4.5
+
+Main Components
+---------------
+1x ESP32-S3 Development Board
+1x RF Directional Coupler / SWR Bridge (50 Ω, with FWD/REV outputs)
+1x MAX98357A I²S Audio Amplifier Module
+1x 4–8 Ω Speaker (1–3 W)
+1x Buzzer (active or passive)
+1x DC/DC Step-Down Converter (e.g. LM2596), 13.8 V → 5 V
+
+Button Ladder (6 keys)
+-----------------------
+6x Momentary Push Buttons (T1..T6)
+1x 10 kΩ resistor (pull-up to 3.3 V)
+1x 1 kΩ resistor  (R1 → T1 → GND)
+1x 2.2 kΩ resistor (R2 → T2 → GND)
+1x 4.7 kΩ resistor (R3 → T3 → GND)
+1x 10 kΩ resistor  (R4 → T4 → GND)
+1x 22 kΩ resistor  (R5 → T5 → GND)
+1x 47 kΩ resistor  (R6 → T6 → GND)
+
+Power and RF
+-------------
+1x 13.8 V station power supply
+1x DC input connector
+2x RF connectors (SO-239, N, PL, BNC – depend on your coupler)
+Coax cables for TX → SWR bridge → Antenna
+
+Miscellaneous
+--------------
+Enclosure / case
+Perfboard or small PCB
+Wiring, headers, connectors
+Tactile / braille labels
+Screws and mounting hardware
+
+Notes
+------
+This BOM corresponds to firmware version 4.5.
+Values of resistors for the button ladder may be adapted to hardware.
+All module grounds must be connected together.
