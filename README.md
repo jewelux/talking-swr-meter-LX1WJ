@@ -244,16 +244,17 @@ The device announces:
 
 # 🎚 Calibration
 
-1. Connect Esp32-S3 to Arduino-Ide via usb
-2. Read output on serial monitor
-3. Apply a known RF power to the coupler  
-4. Read the corresponding FWD voltage in serial monitor
-5. Open the calibration page  
-6. Enter pairs of:
+1. Use the web interface
+2. Connect Esp32-S3 to Arduino-Ide via usb
+3. Read output on serial monitor
+4. Apply a known RF power to the coupler  
+5. Read the corresponding FWD voltage in serial monitor
+6. Open the calibration page  
+7. Enter pairs of:
    - Power (watts)  
    - Voltage (volts)  
-7. Fill all 10 points across your typical power range  
-8. Save  
+8. Fill all 10 points across your typical power range  
+9. Save  
 
 The device stores the data in NVS and uses it for future measurements.
 
