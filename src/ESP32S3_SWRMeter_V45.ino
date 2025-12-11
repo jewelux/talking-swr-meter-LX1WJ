@@ -1,5 +1,5 @@
 /*
- * ESP32-S3 TALKING SWR METER V4.4
+ * ESP32-S3 TALKING SWR METER
  * Version 4.5
  * 
  * Copyright (C) 2025 Jean Weber LX1WJ
@@ -1532,4 +1532,5 @@ void loop() {
 
   delay(10);
 }
+
 
