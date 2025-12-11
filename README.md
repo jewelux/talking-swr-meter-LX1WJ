@@ -1,5 +1,5 @@
 <p align="right">
-  <img src="Logo.png" alt="Talking SWR Meter Logo" width="200">
+  <img src="docs/Logo.png" alt="Talking SWR Meter Logo" width="200">
 </p>
 
 
