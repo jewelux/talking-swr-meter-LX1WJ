@@ -16,6 +16,8 @@ The device announces RF power and SWR via:
 - **audio-based tuning mode** (pitch corresponds to SWR)
 - **a built-in web interface** (ESP32 access point)
 
+Note: This project is actively evolving. The design, features, and documentation will be refined over time as development progresses. The goal is to create a reliable, accessible tool for amateur radio operators, with a focus on usability and inclusion.
+
 The goal of this project is to promote **inclusion in amateur radio** by demonstrating that common measurement tools can be made fully accessible.
 
 ---
