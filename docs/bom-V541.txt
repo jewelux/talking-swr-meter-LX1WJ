@@ -1,0 +1,33 @@
+Talking SWR Meter – Bill of Materials (BOM)
+Version 5.4.1
+
+Main Components
+---------------
+1x ESP32-S3 Development Board
+
+Tested boards:
+- esp32-s3-dev-kit-nxr8 with esp32-s3-wroom-1 chip
+- esp32-s3-dev-board with esp32-s3-n16r8
+
+Ensure that:
+- GPIO1 and GPIO2 are ADC-capable (forward / reflected power)
+- GPIO4, GPIO5, GPIO6, and GPIO7 are available for I²S output
+- GPIO9 can be used as an ADC input (button ladder)
+- GPIO8 supports LEDC PWM (buzzer)
+- The board can boot normally without conflicts on these pins
+
+1x RF Directional Coupler / SWR Bridge (50 Ω, with FWD/REV DC outputs)
+
+Tested couplers:
+- 100 W Tandem Match SWR bridge from 60dbm.com
+- Wavenode HF-Sensor 1.6 – 40 MHz, up to 2 kW
+
+1x MAX98357A I²S Audio Amplifier Module
+1x Loudspeaker, 4–8 Ω, 1–3 W
+1x Buzzer (active or passive, PWM-driven)
+1x DC/DC Step-Down Converter (e.g. LM2596), 13.8 V → 5 V
+
+Button Ladder (6 Keys on One ADC Pin)
+------------------------------------
+6x Momentary push buttons
+
