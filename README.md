@@ -2,143 +2,129 @@
   <img src="docs/Logo.png" alt="Talking SWR Meter Logo" width="200">
 </p>
 
+# Talking SWR Meter (ESP32)
 
-# Accessible Talking SWR Meter
-### Speech-guided SWR and RF power meter for blind and visually impaired amateur radio operators
+This project implements a talking SWR and RF power meter based on an ESP32.
+It is designed to be operated without a display and provides all relevant
+information via audio output.
 
-This project implements a fully “talking” SWR and RF power meter based on an **ESP32-S3** and a **directional coupler**.  
-It is designed to be used without any visual display, making it especially suitable for blind and visually impaired amateur radio operators.
-
-The device announces RF power and SWR via:
-- **Speech output** (I2S audio amplifier, voice clips stored in flash – no SD card required)
-- **Morse code** (buzzer)
-- **Audio tuning mode** (buzzer pitch corresponds to SWR)
-- **Built-in web interface** (Wi-Fi AP + mDNS hostname)
+The device measures forward and reflected power using a directional coupler
+and calculates RF power and SWR. Interaction is performed using buttons,
+acoustic feedback, and a web interface.
 
 ---
 
-## Firmware / Release
-This repository contains the **V51** firmware release.  
-Inside the sketch, the firmware version string is shown as **FW_VERSION = 5.4.1**.
+## Project Evolution
 
-Key improvements in this release:
-- mDNS hostname **swrmeter.local**
-- Persistent user settings (speaker volume, buzzer volume, Morse speed)
-- Failsafe settings versioning (auto-reset on schema mismatch)
-- Web UI shows current settings + “Reset Settings”
-- Audible confirmation after settings auto-save (short double-beep)
+This project is intentionally designed as an evolving system.
 
----
+The Talking SWR Meter did not start as a fixed or finished product, but as a
+practical solution to real operating needs. Features and refinements have been
+added step by step, driven by hands-on use, operator feedback, and practical
+experience in real operating environments.
 
-## Quick Start (first power-up)
+Firmware, hardware concepts, and the user interface are subject to continuous
+improvement. Evolution is considered more important than freezing the design
+at an early stage, allowing the project to adapt to new requirements and
+different user needs over time.
 
-### 1) Flash the firmware
-Open the `.ino` in Arduino IDE and upload to your ESP32-S3.
-
-Recommended board/core:
-- ESP32 Arduino core (Espressif)
-- Select your ESP32-S3 board variant
-
-### 2) Connect to the web interface
-You have two options:
-
-**A) mDNS (recommended):**
-- Open: `http://swrmeter.local`
-
-**B) Access-Point fallback:**
-- Connect your phone/PC to the ESP32 AP SSID shown as: `SWR-Meter-S3-FW <version>`
-- Then open: `http://192.168.4.1`
+The project should therefore be understood as an open and growing design
+rather than a static device.
 
 ---
 
-## Controls (T1..T6)
-The device uses **6 pushbuttons** connected as a **resistor ladder** to a single ADC input.
+## Features
 
-Typical functions (short/long press may differ depending on your build):
-- Speak power / SWR
-- Morse output
-- Enter/exit tuning mode
-- Adjust volumes
-- Adjust Morse speed
-
-> Tip: The device supports “Cancel / Stop output” behavior to keep interaction responsive.
-
----
-
-## Web Interface Pages
-
-- `/` : Status page (latest power & SWR) and **Current Settings**
-- `/config` : Configuration page
-- `/cal` : Calibration page
-- `/factoryReset` : Factory reset (configuration + calibration)
-- `/resetSettings` : **Reset user settings only** (speaker/buzzer/morse)
-
-Data endpoints (used internally):
-- `/data`
-- `/saveConfig`
-- `/saveCal`
-- `/cal/export`
-- `/cal/import`
+- Measurement of forward power, reflected power, and SWR
+- Spoken output of power and SWR via loudspeaker (voice samples stored in flash)
+- Morse code output via buzzer
+- Audio tuning mode with pitch related to SWR
+- Six-button user interface using a resistor ladder on a single ADC input
+- Integrated web interface for configuration and calibration
+- WiFi access point and mDNS support (`swrmeter.local`)
+- Calibration stored in non-volatile memory (NVS), exportable as JSON
+- Persistent user settings:
+  - speaker volume
+  - buzzer volume
+  - morse speed
 
 ---
 
-## Persistent Settings (important)
-The following **user settings are stored in NVS (flash)**:
-- Speaker volume (5 steps)
-- Buzzer volume (5 steps)
-- Morse speed (BPM)
+## Hardware
 
-Behavior:
-- When you change a setting, it is marked “dirty”.
-- After ~1–2 seconds without further changes, settings are automatically saved.
-- A **short double-beep** confirms the save.
-
-Failsafe:
-- Settings are stored together with a **settings version number**.
-- If the firmware expects a different version, the device automatically loads defaults and re-saves them.
+- ESP32-S3 development board
+- Directional coupler with DC outputs for forward and reflected power
+- I2S audio amplifier (e.g. MAX98357A) and loudspeaker
+- Buzzer for morse code and tuning feedback
+- Six push buttons connected as a resistor ladder
+- Optional enclosure and RF connectors (SO-239 or N-type)
 
 ---
 
-## Calibration (directional coupler)
-A directional coupler is required. It must provide two DC voltages proportional to RF power:
-- **FWD** (forward power)
-- **REV** (reflected power)
+## Operation
 
-Calibration is done via the web UI:
-- Enter calibration points (Power ↔ Voltage)
-- Export/Import calibration as JSON for backup
-- Calibration is stored in NVS
+The device is operated using six buttons (T1–T6). Depending on short or long
+presses, the buttons trigger spoken output, morse output, tuning mode, or
+adjust user settings.
 
----
-
-## Troubleshooting
-
-### `swrmeter.local` does not work
-- Use the AP fallback: `http://192.168.4.1`
-- Some systems require mDNS/Bonjour support
-- VPN / guest Wi-Fi isolation can break mDNS
-
-### Settings do not persist
-- Verify you hear the **double-beep** after changing settings (auto-save confirmation)
-- Use `/resetSettings` if needed, then set your preferred values again
+All actions provide immediate acoustic feedback. Ongoing speech output can
+be cancelled to keep operation responsive.
 
 ---
 
-## Licenses
-Licenses remain unchanged:
-- `LICENSE` applies to firmware/source code
-- `LICENSE-docs` applies to documentation
+## Web Interface
+
+The ESP32 hosts a built-in web server accessible via:
+
+- `http://swrmeter.local` (mDNS)
+- or the assigned IP address
+
+The web interface allows:
+- viewing current power and SWR values
+- editing configuration parameters
+- performing calibration
+- exporting and importing calibration data
+- resetting user settings or performing a factory reset
 
 ---
 
-## Repository Structure (recommended)
-- `src/` contains firmware releases:
-  - `ESP32S3_SWRMeter_V51.ino`
-  - `voice_data.h`
-- Root contains docs:
-  - `README.md`
-  - `bom.txt`
-  - `talking-swr-meter-principle.txt`
-or persons. RF systems can generate heat, high
-voltages, and strong electromagnetic fields. Always follow your local
-regulations and operate responsibly.
+## Persistent Settings
+
+User settings are stored in non-volatile memory (NVS), including speaker
+volume, buzzer volume, and morse speed.
+
+Settings are saved automatically after a short delay when changed.
+A short audible confirmation indicates successful storage.
+
+A settings version number is used internally to ensure compatibility between
+firmware updates. If a mismatch is detected, default values are restored
+automatically.
+
+---
+
+## Calibration
+
+Calibration is performed using a known load and defined transmitter power
+levels. Calibration data maps ADC readings to RF power in watts.
+
+Calibration data can be exported and imported as a JSON file via the web
+interface for backup and reuse.
+
+---
+
+## Inclusion and Accessibility
+
+This project was created with a strong focus on inclusion.
+
+Many amateur radio instruments rely on visual displays and are therefore
+difficult or impossible to use for blind or visually impaired operators.
+The Talking SWR Meter addresses this limitation by providing all relevant
+information through audio output.
+
+By combining spoken announcements, morse code, and acoustic tuning feedback,
+the device enables blind radio amateurs to independently measure and tune
+their antennas without assistance.
+
+The project is intended as a contribution toward more inclusive amateur
+radio equipment and to encourage further development of accessible tools
+within the amateur radio community.
