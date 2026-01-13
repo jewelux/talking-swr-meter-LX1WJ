@@ -13,7 +13,7 @@ operators.
 
 ## 1. Basic Operating Concept
 
-The Talking SWR Meter is controlled using **six push buttons**, labeled T1 to T6.
+The Talking SWR Meter is controlled using **six push buttons** on the front panel, labeled T1 to T6 from left to right.
 The buttons are connected as a resistor ladder and are detected by the firmware
 as individual keys.
 
@@ -77,23 +77,13 @@ User settings (volume, morse speed) are restored automatically from memory.
 
 ## 4. Speaking RF Power and SWR
 
-### 4.1 Speaking RF Power 
-- Press the assigned button for power output (typically **T2, short press**).
-- The device speaks the measured forward power in watts.
+- Press the assigned button for power and swr output (typically **T2, short press**).
+- The device speaks the measured forward power in watts and the SWR value with one decimal digit.
 
 Example:
-> “Power: twenty watts”
+> “Power: twenty watts”, “SWR: one point five”
 
 If no RF power is present, the device announces zero.
-
-### 4.2 Speaking SWR
-- Press the assigned button for SWR output (typically **T2, short press**).
-- The device speaks the SWR value with one decimal digit.
-
-Example:
-> “SWR: one point five”
-
-If forward power is too low, a safe default is announced.
 
 ---
 
@@ -102,7 +92,7 @@ If forward power is too low, a safe default is announced.
 Tuning mode provides continuous acoustic feedback to help adjust an antenna.
 
 ### 5.1 Entering Tuning Mode
-- Press and hold the assigned tuning button (typically **T2, long press**).
+- Press and hold the assigned tuning button (typically **T1, long press**).
 
 ### 5.2 Interpreting the Sound
 - The buzzer emits a continuous tone.
@@ -124,9 +114,9 @@ Morse output can be used as an alternative to speech, especially in noisy
 environments.
 
 ### 6.1 Activating Morse Output
-- Press the assigned button (typically **T3**).
+- Press the assigned button (typically **T1 short press**).
 
-Numbers and values are output as morse code via the buzzer.
+RF power and swr are output as morse code via the buzzer.
 
 ### 6.2 Adjusting Morse Speed
 - Use the assigned buttons (typically **T5 / T6**).
@@ -139,12 +129,12 @@ Morse speed is stored persistently.
 ## 7. Adjusting Volumes
 
 ### 7.1 Speaker Volume (Speech)
-- Use the assigned volume button (typically **T4**).
+- Use the assigned volume button (typically **T4 short press**).
 - Each press cycles through 5 volume levels.
 - The number of beeps indicates the selected level.
 
 ### 7.2 Buzzer Volume (Morse and Beeps)
-- Use the assigned buzzer volume control (typically **long press on T4**).
+- Use the assigned buzzer volume control (typically **short press on T3**).
 - Volume levels are indicated by beep count.
 
 ### 7.3 Saving Volumes
