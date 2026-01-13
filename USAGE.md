@@ -1,6 +1,6 @@
 # Talking SWR Meter – Operating Guide (Non-Visual Use)
 
-Applies to firmware version V51 (FW_VERSION 5.4.1) and later.
+Applies to version V5.4.1 (FW_VERSION 5.4.1) and later.
 
 This document describes how to operate the Talking SWR Meter **without any visual
 feedback**. All functions can be accessed using buttons and acoustic output
