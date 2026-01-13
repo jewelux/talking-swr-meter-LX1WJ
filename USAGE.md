@@ -77,8 +77,8 @@ User settings (volume, morse speed) are restored automatically from memory.
 
 ## 4. Speaking RF Power and SWR
 
-### 4.1 Speaking RF Power
-- Press the assigned button for power output (typically **T1, short press**).
+### 4.1 Speaking RF Power 
+- Press the assigned button for power output (typically **T2, short press**).
 - The device speaks the measured forward power in watts.
 
 Example:
