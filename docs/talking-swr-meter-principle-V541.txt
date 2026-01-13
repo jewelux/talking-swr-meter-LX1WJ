@@ -1,0 +1,209 @@
+Talking SWR Meter – ESP32-S3 (Voice Output)
+Operating Principle and Wiring Overview (ASCII)
+Version 5.4.1
+
+------------------------------------------------------------
+1. RF PATH (Directional Coupler / SWR Bridge)
+------------------------------------------------------------
+
+        Transceiver                         Antenna
+           │                                   │
+           │  TX                                │
+           └───────[ RF IN   SWR BRIDGE   RF OUT ]───────────┐
+                   Directional Coupler / SWR Bridge          │
+                   (e.g. 100 W / 2000 W models)              │
+                          │              │                   │
+                          │ FWD          │ REV               │
+                          │              │                   │
+                          ▼              ▼                   │
+
+                    +----------------------------+
+                    |        ESP32-S3            |
+                    |      DevKit / Module       |
+                    |                            |
+     FWD  ─────────►| GPIO1  (ADC input)         |
+     REV  ─────────►| GPIO2  (ADC input)         |
+                    |                            |
+                    |   (all grounds common)     |
+                    +----------------------------+
+
+Notes:
+- The directional coupler must provide two DC voltages proportional
+  to forward (FWD) and reflected (REV) RF power.
+- Voltage levels must not exceed 3.3 V at the ESP32 ADC inputs.
+- Calibration is mandatory and performed via the web interface.
+
+
+------------------------------------------------------------
+2. AUDIO PATH (I2S → MAX98357A → Speaker)
+------------------------------------------------------------
+
+                    +----------------------------+
+                    |        ESP32-S3            |
+                    |                            |
+ I2S BCLK   ───────►| GPIO4                      |
+ I2S LRCLK  ───────►| GPIO5                      |
+ I2S DOUT   ───────►| GPIO6                      |
+ AMP_SD     ───────►| GPIO7  (amp enable)        |
+                    |                            |
+  5V  ◄─────────────| 5V                         |
+ GND ───────────────| GND                        |
+                    +----------------------------+
+
+        ESP32 I2S                     MAX98357A               Speaker
+ (GPIO4/5/6 + GPIO7 enable)  ─────►   Class-D I2S Amp  ────►  4–8 Ω
+
+                   +------------------------+
+                   |       MAX98357A        |
+                   |                        |
+        5V   ◄─────| VIN                    |
+       GND   ◄─────| GND                    |
+  I2S BCLK  ◄──────| BCLK                   |
+  I2S LRCLK ◄──────| LRC                    |
+  I2S DIN   ◄──────| DIN                    |
+  AMP_SD    ◄──────| SD  (enable pin)       |
+                   |                        |
+  SPK+ ───────────►| SPK+                   |
+  SPK- ───────────►| SPK-                   |
+                   +------------------------+
+
+Notes:
+- Speech output is generated using pre-recorded PCM voice clips
+  stored in flash memory (PROGMEM).
+- A per-clip gain table is used to equalize loudness.
+- The amplifier is enabled and disabled via GPIO7 to reduce noise.
+
+
+------------------------------------------------------------
+3. BUTTON LADDER (6 Buttons on one ADC Pin – GPIO9)
+------------------------------------------------------------
+
+Function:
+- A pull-up resistor from 3.3 V to the ADC input.
+- From the same node, six branches go through:
+  resistor → switch → ground.
+- Each button produces a distinct ADC voltage.
+- Button thresholds are defined in firmware.
+
+ASCII diagram:
+
+           3.3V
+            │
+         [Rpull]
+         10 kΩ
+            │
+            ├────────────► ESP32 GPIO9 (ADC)
+            │
+            │
+            ├──[R1  1 kΩ]── S1 ─── GND   (Button T1)
+            │
+            ├──[R2  2.2 kΩ] S2 ─── GND   (Button T2)
+            │
+            ├──[R3  4.7 kΩ] S3 ─── GND   (Button T3)
+            │
+            ├──[R4 10 kΩ]  S4 ─── GND    (Button T4)
+            │
+            ├──[R5 22 kΩ]  S5 ─── GND    (Button T5)
+            │
+            └──[R6 47 kΩ]  S6 ─── GND    (Button T6)
+
+Notes:
+- Resistor values are examples.
+- Actual ADC voltage ranges must be adapted to the hardware.
+- The firmware supports short and long button presses.
+
+
+------------------------------------------------------------
+4. BUZZER (PWM / LEDC)
+------------------------------------------------------------
+
+The buzzer is driven by a PWM output using the ESP32 LEDC peripheral.
+
+                    +----------------------------+
+                    |         ESP32-S3           |
+                    |                            |
+     Buzzer SIG ───►| GPIO8  (LEDC PWM output)   |
+                    |                            |
+                    +----------------------------+
+
+        +----------+       +------------------+
+        |  ESP32   |       |     Buzzer       |
+        |  GPIO8   |──────►| SIG              |
+        |          |       |                  |
+        |   GND    |──────►| –                |
+        +----------+       +------------------+
+
+Notes:
+- Used for morse output, tuning feedback, and confirmation beeps.
+- Buzzer loudness is adjustable and stored persistently.
+
+
+------------------------------------------------------------
+5. POWER SUPPLY (13.8 V → Step-Down → 5 V)
+------------------------------------------------------------
+
+Typical station power supply:
+
+         13.8 V DC
+           +   -
+           │   │
+           │   └──────────────┐
+           │                  │
+           ▼                  ▼
+
+      +------------------------------+
+      |       Step-Down Module       |
+      |         (e.g. LM2596)        |
+      |                              |
+      |  IN+   ◄────── 13.8 V +      |
+      |  IN-   ◄────── GND           |
+      |                              |
+      |  OUT+  ───────► 5 V +        |
+      |  OUT-  ───────► GND          |
+      +------------------------------+
+
+5 V distribution:
+
+   OUT+ (5 V)  ─────────► ESP32 5V pin
+                               MAX98357 VIN
+                               buzzer (if 5 V type)
+
+   OUT- (GND) ─────────► ESP32 GND
+                               MAX98357 GND
+                               directional coupler GND
+                               button ladder GND
+
+All grounds must be common.
+
+
+------------------------------------------------------------
+6. ESP32-S3 PIN SUMMARY (Sketch Version 5.4.1)
+------------------------------------------------------------
+
+RF Measurement:
+- GPIO1  : Forward power (FWD) ADC input
+- GPIO2  : Reflected power (REV) ADC input
+
+Button Ladder:
+- GPIO9  : ADC input for 6-button ladder (T1..T6)
+
+Audio / I2S:
+- GPIO4  : I2S BCLK  → MAX98357 BCLK
+- GPIO5  : I2S LRCLK → MAX98357 LRC
+- GPIO6  : I2S DOUT  → MAX98357 DIN
+- GPIO7  : AMP_SD    → amplifier enable
+
+Buzzer:
+- GPIO8  : PWM (LEDC) output → buzzer signal
+
+Power:
+- 5V     : external step-down supply
+- 3.3V   : on-board regulator (logic)
+- GND    : common ground reference
+
+
+------------------------------------------------------------
+End of ASCII principle description
+Talking SWR Meter – ESP32-S3 (Voice Output)
+Version 5.4.1
+------------------------------------------------------------
