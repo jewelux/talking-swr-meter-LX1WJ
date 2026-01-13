@@ -1,11 +1,3 @@
-/* voice_data.h
- * Audio samples for SWR Meter
- * 
- * Copyright (C) 2025 Jean Weber LX1WJ
- * Licensed under the GNU GPLv3.
- */
-
-
 // Diese Datei wurde automatisch erzeugt.
 // Sie enthält die Audiodaten deiner Sprachbausteine im Flash (PROGMEM).
 
@@ -16528,4 +16520,3 @@ const uint8_t voice_swr[] PROGMEM = {
 const size_t voice_swr_len = 33288;
 
 // Ende der automatisch erzeugten Datei
-
