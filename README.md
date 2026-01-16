@@ -46,7 +46,7 @@ This project is provided **for experimental and educational use only**, **AS IS*
 5. Calibrate your coupler in the web UI (required for meaningful watt readings).
 
 ## Documentation
-- Detailed operating guide: `USAGE.md`
+- **Detailed operating guide:** [USAGE.md](USAGE.md)
 - (planned) Hardware/KiCad, wiring, enclosure, BOM: `docs/` and `hardware/`
 
 ## License
