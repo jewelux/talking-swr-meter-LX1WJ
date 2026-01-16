@@ -133,3 +133,22 @@ their antennas without assistance.
 The project is intended as a contribution toward more inclusive amateur
 radio equipment and to encourage further development of accessible tools
 within the amateur radio community.
+
+## Disclaimer
+This project is provided as-is. The author disclaims all liability for damage or injury caused by the use or misuse of this device. Users are responsible for:
+
+- Compliance with local regulations (e.g., radio transmission laws).
+- Safe operation of the hardware and software.
+- Ensuring the device is used only for non-commercial purposes.
+- Respecting the license terms as outlined in the LICENSE (GPLv3 for software) and LICENSE-docs (CC BY-SA 4.0 for documentation) files at the top of this GitHub page.
+
+Important:
+
+- This device is not certified for commercial use.
+- The author is not liable for any direct, indirect, or consequential damages.
+- Always verify connections and calibrate the device before transmitting.
+- Modifications or distributions must comply with the terms of the respective licenses.
+
+
+
+
