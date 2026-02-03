@@ -45,7 +45,7 @@ Notes:
  I2S LRCLK  ───────►| GPIO5                      |
  I2S DOUT   ───────►| GPIO6                      |
  AMP_SD     ───────►| GPIO7  (amp enable)        |
-                    |                            |
+ GAIN       ───────►| GND                        |
   5V  ◄─────────────| 5V                         |
  GND ───────────────| GND                        |
                     +----------------------------+
@@ -58,11 +58,11 @@ Notes:
                    |                        |
         5V   ◄─────| VIN                    |
        GND   ◄─────| GND                    |
-  I2S BCLK  ◄──────| BCLK                   |
-  I2S LRCLK ◄──────| LRC                    |
-  I2S DIN   ◄──────| DIN                    |
-  AMP_SD    ◄──────| SD  (enable pin)       |
-                   |                        |
+  GPIO4     ◄──────| BCLK                   |
+  GPIO5     ◄──────| LRC                    |
+  GPIO6     ◄──────| DIN                    |
+  GPIO7     ◄──────| SD  (enable pin)       |
+  GND       ◄──────| GAIN                   |
   SPK+ ───────────►| SPK+                   |
   SPK- ───────────►| SPK-                   |
                    +------------------------+
