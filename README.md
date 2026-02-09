@@ -2,7 +2,7 @@
   <img src="docs/Logo.png" alt="Talking SWR Meter Logo" width="200">
 </p>
 
-# Talking SWR Meter (ESP32-S3)
+# Talking SWR Meter LX1WJ
 
 Accessible talking SWR + RF power meter for blind & visually impaired amateur radio operators.
 
