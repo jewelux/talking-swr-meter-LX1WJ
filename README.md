@@ -10,7 +10,7 @@ Accessible talking SWR + RF power meter for blind & visually impaired amateur ra
 A standalone SWR/power meter based on an ESP32-S3 and an RF directional coupler (FWD/REV DC outputs).  
 All key information is provided via **speech** and **Morse**, so no display is required.
 
-## 🤝 Project Philosophy & Status
+## Project Philosophy & Status
 **This project is not for commercial sale.**
 Its purpose is to **empower the amateur radio community** to **build and donate** accessible controllers for blind or visually impaired operators under the **open-source model**:
 
