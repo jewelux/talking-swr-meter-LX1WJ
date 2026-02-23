@@ -12,7 +12,7 @@ All key information is provided via **speech** and **Morse**, so no display is r
 
 ## Project Philosophy & Status
 **This project is not for commercial sale.**
-Its purpose is to **empower the amateur radio community** to **build and donate** accessible controllers for blind or visually impaired operators under the **open-source model**:
+Its purpose is to **empower the amateur radio community** to **build and donate** accessible controllers for blind or visually impaired operators under the **open-source model**.
 
 ## Key features (overview)
 - Speech output via I2S audio amplifier (e.g. MAX98357A) + speaker
