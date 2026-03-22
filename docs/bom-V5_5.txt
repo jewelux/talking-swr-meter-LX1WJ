@@ -1,5 +1,5 @@
-Talking SWR Meter – Bill of Materials (BOM)
-Version 5.4.1
+Talking SWR Meter - Bill of Materials (BOM)
+Version 5.5
 
 Main Components
 ---------------
@@ -11,23 +11,28 @@ Tested boards:
 
 Ensure that:
 - GPIO1 and GPIO2 are ADC-capable (forward / reflected power)
-- GPIO4, GPIO5, GPIO6, and GPIO7 are available for I²S output
+- GPIO4, GPIO5, GPIO6, and GPIO7 are available for I2S output
 - GPIO9 can be used as an ADC input (button ladder)
 - GPIO8 supports LEDC PWM (buzzer)
 - The board can boot normally without conflicts on these pins
 
-1x RF Directional Coupler / SWR Bridge (50 Ω, with FWD/REV DC outputs)
+1x RF Directional Coupler / SWR Bridge (50 ohm, with FWD/REV DC outputs)
 
 Tested couplers:
 - 100 W Tandem Match SWR bridge from 60dbm.com
-- Wavenode HF-Sensor 1.6 – 40 MHz, up to 2 kW
+- Wavenode HF-Sensor 1.6 - 40 MHz, up to 2 kW
 
-1x MAX98357A I²S Audio Amplifier Module
-1x Loudspeaker, 4–8 Ω, 1–3 W
+1x MAX98357A I2S Audio Amplifier Module
+1x Loudspeaker, 4-8 ohm, 1-3 W
 1x Buzzer (active or passive, PWM-driven)
-1x DC/DC Step-Down Converter (e.g. LM2596), 13.8 V → 5 V
+1x DC/DC Step-Down Converter (e.g. LM2596), 13.8 V -> 5 V
 
 Button Ladder (6 Keys on One ADC Pin)
 ------------------------------------
 6x Momentary push buttons
 
+Notes for firmware V5.5
+-----------------------
+- The firmware provides a 66-row calibration table.
+- Calibration can be backed up and restored as JSON or CSV.
+- The web calibration page can capture Ufwd/Uref directly per row.

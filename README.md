@@ -15,6 +15,7 @@ All key information is provided via **speech** and **Morse**, so no display is r
 Its purpose is to **empower the amateur radio community** to **build and donate** accessible controllers for blind or visually impaired operators under the **open-source model**.
 
 ## Key features (overview)
+- Firmware version **5.5**
 - Speech output via I2S audio amplifier (e.g. MAX98357A) + speaker
 - Morse output via buzzer
 - Tuning mode: continuous SWR with audio pitch feedback (tracks minima)
@@ -22,9 +23,11 @@ Its purpose is to **empower the amateur radio community** to **build and donate*
 - Built-in web UI (ESP32 Wi-Fi AP) for status, settings, and calibration
 - mDNS hostname: `swrmeter.local` (if supported by client)
 - Settings + calibration stored persistently (NVS)
-- Calibration export/import as JSON
+- Extended calibration table with **66 measurement rows**
+- Calibration page with per-row **Measure** and **Clear** buttons
+- Calibration export/import as **JSON and CSV**
 
-## ⚠️ Disclaimer / Safety Notice
+## Disclaimer / Safety Notice
 This project is provided **for experimental and educational use only**, **AS IS**, without any warranty.
 
 - The device is **not a certified measuring instrument**.
@@ -36,27 +39,28 @@ This project is provided **for experimental and educational use only**, **AS IS*
 
 ## Hardware required (minimum)
 - ESP32-S3 development board
-- RF directional coupler / SWR bridge (50 Ω) with DC outputs: FWD and REV (keep within 0…3.3 V at ADC)
+- RF directional coupler / SWR bridge (50 ohm) with DC outputs: FWD and REV (keep within 0...3.3 V at ADC)
 - I2S audio amplifier + speaker
 - Piezo buzzer (PWM)
 - 6 pushbuttons + resistor ladder (single ADC input)
 - 12 V supply (and regulators as needed)
 
 ## Quick start
-1. Flash firmware to the ESP32-S3 (Arduino IDE).
-2. Power on: the device starts a Wi-Fi access point named `SWR-Meter-S3-FW <version>`.
-3. Connect with phone/PC and open: `http://192.168.4.1/`
-4. Use the buttons to announce SWR/power (speech or Morse).
-5. Calibrate your coupler in the web UI (required for meaningful watt readings).
+1. Flash firmware `src/Talking_SWRMeter_V5_5.ino` to the ESP32-S3 with `voice_data.h`.
+2. Power on: the device starts a Wi-Fi access point named `SWR-Meter-S3-FW 5.5`.
+3. Connect with phone or PC and open: `http://192.168.4.1/`
+4. Use T1/T2 for Morse or speech measurement.
+5. Calibrate your coupler in the web UI. In V5.5 you can capture Ufwd/Uref directly per row with the **Measure** button.
+6. Save calibration and optionally export it as JSON or CSV.
 
 ## Documentation
 - **Detailed operating guide:** [USAGE.md](USAGE.md)
-- (planned) Hardware/KiCad, wiring, enclosure, BOM: `docs/` and `hardware/`
+- **Calibration quick guide:** [docs/Kurzanleitung_Messung_V5_5.txt](docs/Kurzanleitung_Messung_V5_5.txt)
+- **Bill of materials:** [docs/bom-V5_5.txt](docs/bom-V5_5.txt)
+- **Principle and wiring overview:** [docs/talking-swr-meter-principle-V5_5.txt](docs/talking-swr-meter-principle-V5_5.txt)
+- Additional reference material: `docs/`
 
 ## License
 Firmware source code: GPL-3.0  
 Documentation: CC BY-SA 4.0  
 See `LICENSE` and `LICENSE-docs`.
-
-
-

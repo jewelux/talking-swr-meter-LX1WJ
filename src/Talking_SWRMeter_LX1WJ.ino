@@ -16,7 +16,7 @@ extern "C" {
 // --------------------------------------------------------
 // Firmware / settings versioning
 // --------------------------------------------------------
-static const char* FW_VERSION = "5.4.1";
+static const char *FW_VERSION = "5.5";
 static const uint16_t USER_SETTINGS_VERSION = 1;  // bump when changing stored keys/meaning
 
 // Forward declaration to keep Arduino's auto-prototypes happy
@@ -24,28 +24,43 @@ enum VoiceClip : uint8_t;
 
 
 // ========================================================
-// ESP32-S3 TALKING SWR METER V5.4.1
+// Device overview
 //
-// - RF measurement (forward/reflected) with calibration table
-// - 6-button ladder on one ADC input (T1..T6)
-// - Speech output from PROGMEM (zero..nine, point, power, watts, swr)
-// - Buzzer for Morse, tuning tone and startup "OK" in Morse
-// - WiFi AP + main page + configuration + calibration page
+// This sketch implements a talking RF power / SWR meter based on an ESP32-S3.
+// It is intended to be used with a directional coupler that delivers two analog
+// detector voltages:
+//   Ufwd = forward detector voltage
+//   Uref = reflected detector voltage
 //
-// Button functions:
-//   T1 short : Single measurement + Morse (power & SWR*10)
-//   T1 long  : Tuning mode ON/OFF (SWR → buzzer pitch)
-//   T2 short : Single measurement + speech from PROGMEM
-//   T2 long  : Speech self test (all clips in sequence)
-//   T3 short : Buzzer volume one step down
-//   T3 long  : Buzzer volume one step up
-//   T4 short : Speech volume one step down
-//   T4 long  : Speech volume one step up
-//   T5 short : Morse speed slower (-STEP_MORSE_BPM), speed in Morse
-//   T5 long  : Restore default Morse speed
-//   T6 short : Morse speed faster (+STEP_MORSE_BPM)
-//   T6 long  : Same as T5 long (restore default)
+// Main purpose:
+// - measure forward power and SWR
+// - announce results acoustically via Morse or speech
+// - support blind or low-vision-friendly operation
+// - allow convenient calibration over a local WiFi web page
+//
+// Measurement principle:
+// - the ESP samples Ufwd and Uref
+// - each direction is calibrated independently
+// - Ufwd is converted to Pfwd
+// - Uref is converted to Pref
+// - SWR is calculated from Pfwd and Pref
+//
+// Calibration principle:
+// - the web table stores real reference points:
+//     Pfwd [W], Ufwd [V], Uref [V], SWR read
+// - from these points the firmware builds two interpolation curves:
+//     Ufwd -> Pfwd
+//     Uref -> Pref
+// - practical calibration can be done either:
+//   1. directly with a trusted reference SWR / power meter
+//   2. via a 55-ohm dummy load and Vpp measurement on the load
+//
+// User interface:
+// - local button control via 6-button resistor ladder
+// - Morse output, speech output and tuning tone
+// - WiFi AP with status page, configuration page and calibration page
 // ========================================================
+//
 
 // --------------------------------------------------------
 // Pin assignment
@@ -109,7 +124,7 @@ float BTN_MID_T4 = 1.560f;
 float BTN_MID_T5 = 2.184f;
 float BTN_MID_T6 = 2.658f;
 
-// Detection ranges (± Volts)
+// Detection ranges (Ã‚Â± Volts)
 float BTN_RANGE_NO = 0.257f;
 float BTN_RANGE_T1 = 0.110f;
 float BTN_RANGE_T2 = 0.110f;
@@ -163,10 +178,10 @@ float TUNING_MIN_DELTA = 0.02f;
 unsigned long SPEECH_PAUSE_MS = 200;
 
 // Speech volume levels (5 steps via index)
-const float SPEECH_LEVELS[5] = { 0.10f, 0.25f, 0.50f, 0.75f, 1.00f };
-static const int DEFAULT_SPEECH_LEVEL_INDEX = 2;  // 0..4
-int speechLevelIndex = DEFAULT_SPEECH_LEVEL_INDEX;     // 0..4 -> default = 0.5x
-float SPEECH_VOLUME = 0.50f;  // updated from index
+const float SPEECH_LEVELS[5] = { 0.08f, 0.16f, 0.28f, 0.40f, 0.55f };
+static const int DEFAULT_SPEECH_LEVEL_INDEX = 2;    // 0..4
+int speechLevelIndex = DEFAULT_SPEECH_LEVEL_INDEX;  // 0..4 -> default = 0.5x
+float SPEECH_VOLUME = 0.50f;                        // updated from index
 
 // Output cancel (any button press stops ongoing speech/Morse/beeps)
 volatile bool cancelOutput = false;
@@ -191,9 +206,9 @@ void updateMorseTiming();
 // --------------------------------------------------------
 
 const int BUZZER_LEVELS[5] = { 2, 10, 30, 100, 700 };
-static const int DEFAULT_BUZZER_LEVEL_INDEX = 3;  // 0..4
-int buzzerLevelIndex = DEFAULT_BUZZER_LEVEL_INDEX;            // 0..4
-int BUZZER_DUTY = BUZZER_LEVELS[3];  // default
+static const int DEFAULT_BUZZER_LEVEL_INDEX = 3;    // 0..4
+int buzzerLevelIndex = DEFAULT_BUZZER_LEVEL_INDEX;  // 0..4
+int BUZZER_DUTY = BUZZER_LEVELS[3];                 // default
 
 void resetToDefaultUserSettings() {
   speechLevelIndex = DEFAULT_SPEECH_LEVEL_INDEX;
@@ -228,7 +243,7 @@ WebServer server(80);
 
 
 
-// Calibration JSON import buffer (used by /cal/import multipart upload)
+// Calibration import buffer (used by /cal/import multipart upload)
 String g_calImportBuf;
 // --------------------------------------------------------
 // Calibration data (FWD/REV) - extended (non-symmetric coupler)
@@ -237,11 +252,11 @@ String g_calImportBuf;
 Preferences prefs;      // calibration
 Preferences prefsUser;  // user settings (volume, morse, etc.)
 
-// We store up to 30 measurement rows entered on the AP calibration page.
+// We store the full measurement plan entered on the AP calibration page.
 // From these rows we build two independent lookup tables:
 //   Ufwd -> Pfwd   and   Uref -> Pref (derived from Pfwd + SWR read)
 // using piecewise-linear interpolation.
-const int CAL_ROWS = 26;
+const int CAL_ROWS = 66;
 
 // One row = one real measurement point (can be partially empty)
 struct CalRow {
@@ -254,17 +269,82 @@ struct CalRow {
 CalRow calRows[CAL_ROWS];
 
 // --- Default calibration row presets (helper values only) ---
-// These values are meant as *targets* while measuring. You overwrite them with the real Pfwd reading.
-// Only Pfwd_W is prefilled; Ufwd/Uref/SWR remain 0 until you enter real measured values.
-static const int CAL_PRESET_COUNT = 26;
-static const float defaultPfwdPreset[CAL_PRESET_COUNT] = {
-  10, 20, 30, 40, 50, 60, 70, 80, 90, 100,  // SWR ~ 1.0 (dummy load), cover full forward range
-  10, 20, 30,                               // SWR ~ 2.0
-  10, 20, 30,                               // SWR ~ 2.5
-  10, 20, 30,                               // SWR ~ 3.0
-  10, 20, 30,                               // SWR ~ 4.0
-  10, 20, 30,                               // SWR ~ 5.0
-  50                                        // optional validation point (SWR ~ 3..4)
+// These values are meant as *targets* while measuring.
+// Pfwd_W and SWR are prefilled according to the requested measurement plan.
+// Ufwd/Uref remain 0 until you enter real measured ADC voltages.
+struct CalPreset {
+  float Pfwd_W;
+  float Swr_read;
+};
+
+static const int CAL_PRESET_COUNT = 66;
+static const CalPreset defaultCalPreset[CAL_PRESET_COUNT] = {
+  {1.8f, 1.1f},
+  {2.7f, 1.1f},
+  {5.0f, 1.1f},
+  {5.7f, 1.1f},
+  {8.85f, 1.1f},
+  {10.0f, 1.1f},
+  {12.0f, 1.1f},
+  {14.5f, 1.1f},
+  {18.2f, 1.1f},
+  {18.6f, 1.1f},
+  {21.0f, 1.1f},
+  {22.0f, 1.1f},
+  {25.6f, 1.1f},
+  {27.0f, 1.1f},
+  {31.1f, 1.1f},
+  {44.0f, 1.1f},
+  {48.5f, 1.1f},
+  {55.0f, 1.1f},
+  {62.0f, 1.1f},
+  {65.7f, 1.1f},
+  {70.5f, 1.1f},
+  {74.5f, 1.1f},
+  {78.5f, 1.1f},
+  {85.5f, 1.1f},
+  {90.0f, 1.1f},
+  {94.0f, 1.1f},
+  {3.39f, 1.5f},
+  {5.7f, 1.5f},
+  {9.954f, 1.5f},
+  {14.796f, 1.5f},
+  {21.454545f, 1.5f},
+  {27.0f, 1.5f},
+  {48.5f, 1.5f},
+  {78.5f, 1.5f},
+  {2.7f, 2.0f},
+  {6.0375f, 2.0f},
+  {12.792683f, 2.0f},
+  {21.151516f, 2.0f},
+  {28.025f, 2.0f},
+  {62.0f, 2.0f},
+  {90.0f, 2.0f},
+  {3.85f, 3.0f},
+  {9.31f, 3.0f},
+  {15.98f, 3.0f},
+  {21.757576f, 3.0f},
+  {27.0f, 3.0f},
+  {3.275f, 4.0f},
+  {7.275f, 4.0f},
+  {12.853659f, 4.0f},
+  {18.6f, 4.0f},
+  {27.0f, 4.0f},
+  {2.7f, 5.0f},
+  {5.116667f, 5.0f},
+  {9.31f, 5.0f},
+  {12.853659f, 5.0f},
+  {18.2f, 5.0f},
+  {22.6f, 5.0f},
+  {2.7f, 7.5f},
+  {7.1625f, 7.5f},
+  {12.365854f, 7.5f},
+  {17.904f, 7.5f},
+  {2.7f, 10.0f},
+  {5.0f, 10.0f},
+  {9.54f, 10.0f},
+  {12.365854f, 10.0f},
+  {13.646341f, 10.0f}
 };
 
 static bool isCalTableEmpty() {
@@ -279,10 +359,15 @@ static bool isCalTableEmpty() {
 static void applyDefaultPfwdPresetsIfEmpty() {
   if (!isCalTableEmpty()) return;
   for (int i = 0; i < CAL_ROWS; i++) {
-    calRows[i].Pfwd_W = (i < CAL_PRESET_COUNT) ? defaultPfwdPreset[i] : 0.0f;
+    if (i < CAL_PRESET_COUNT) {
+      calRows[i].Pfwd_W = defaultCalPreset[i].Pfwd_W;
+      calRows[i].Swr_read = defaultCalPreset[i].Swr_read;
+    } else {
+      calRows[i].Pfwd_W = 0.0f;
+      calRows[i].Swr_read = 0.0f;
+    }
     calRows[i].Ufwd_V = 0.0f;
     calRows[i].Uref_V = 0.0f;
-    calRows[i].Swr_read = 0.0f;
   }
 }
 
@@ -416,7 +501,7 @@ float voltageToPowerTable(float U, const float *tabU, const float *tabP, int tab
   return P1 + t * (P2 - P1);
 }
 
-// Build derived interpolation tables from the 30-row measurement table.
+// Build derived interpolation tables from the 66-row measurement table.
 // Call after loading or saving calibration.
 
 /*
@@ -762,7 +847,7 @@ void initI2S() {
   i2s_config.sample_rate = I2S_SAMPLE_RATE;
   i2s_config.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT;
   i2s_config.channel_format = I2S_CHANNEL_FMT_ONLY_LEFT;
-  i2s_config.communication_format = I2S_COMM_FORMAT_STAND_MSB;
+  i2s_config.communication_format = I2S_COMM_FORMAT_STAND_I2S;
   i2s_config.intr_alloc_flags = 0;
   i2s_config.dma_buf_count = 8;
   i2s_config.dma_buf_len = 256;
@@ -822,7 +907,12 @@ bool playClipProgmemGain(const uint8_t *data, size_t length, float clipGain) {
     size_t sampleCount = n / 2;
     size_t sampleBase = offsetBytes / 2;
 
-    const float g = SPEECH_VOLUME * clipGain;
+float g = SPEECH_VOLUME * clipGain;
+
+// Anti-Clipping: maximaler digitaler Gain (0.90 = etwas Headroom)
+const float MAX_G = 0.55f;
+if (g > MAX_G) g = MAX_G;
+
 
     for (size_t i = 0; i < sampleCount; i++) {
       size_t sIdx = sampleBase + i;
@@ -838,8 +928,21 @@ bool playClipProgmemGain(const uint8_t *data, size_t length, float clipGain) {
         }
       }
 
-      int32_t v = samples[i];
-      v = (int32_t)(v * g * fade);
+      float x = (float)samples[i] / 32768.0f;   // -1..+1
+      x *= (g * fade);
+
+      // Soft-Limiter (schont Peaks, klingt angenehmer)
+      const float T = 0.85f;   // threshold
+      const float R = 4.0f;    // ratio
+      float a = fabsf(x);
+      if (a > T) {
+        float s = (x >= 0) ? 1.0f : -1.0f;
+        float y = T + (a - T) / R;
+        if (y > 1.0f) y = 1.0f;
+        x = s * y;
+      }
+
+      int32_t v = (int32_t)lrintf(x * 32767.0f);
       if (v > 32767) v = 32767;
       if (v < -32768) v = -32768;
       samples[i] = (int16_t)v;
@@ -912,8 +1015,12 @@ bool playClip(VoiceClip clip) {
 }
 
 // --------------------------------------------------------
-inline bool playVoiceClip(VoiceClip clip) { return playClip(clip); }
-inline bool playVoiceClipProgmem(const uint8_t* data, size_t length) { return playClipProgmem(data, length); }
+inline bool playVoiceClip(VoiceClip clip) {
+  return playClip(clip);
+}
+inline bool playVoiceClipProgmem(const uint8_t *data, size_t length) {
+  return playClipProgmem(data, length);
+}
 
 // Numbers -> voice building blocks
 // --------------------------------------------------------
@@ -1290,62 +1397,62 @@ void loadCalibrationFromNVS() {
 }
 
 
-  // --------------------------------------------------------
-  // User settings (persist across reboot)
-  // --------------------------------------------------------
+// --------------------------------------------------------
+// User settings (persist across reboot)
+// --------------------------------------------------------
 
-  void loadUserSettingsFromNVS() {
-    if (!prefsUser.begin("swrSet", true)) {
-      Serial.println("WARN: prefsUser begin (RO) failed");
-      return;
-    }
-
-    uint16_t ver = prefsUser.getUShort("ver", 0);
-    if (ver != USER_SETTINGS_VERSION) {
-      prefsUser.end();
-      Serial.printf("User settings version mismatch (have %u, want %u). Resetting to defaults.\n", ver, USER_SETTINGS_VERSION);
-      resetToDefaultUserSettings();
-      // Save defaults back to NVS
-      saveUserSettingsToNVS();
-      return;
-    }
-
-    speechLevelIndex = prefsUser.getInt("speechIdx", speechLevelIndex);
-    buzzerLevelIndex = prefsUser.getInt("buzzIdx", buzzerLevelIndex);
-    morseBpm = prefsUser.getInt("morseBpm", morseBpm);
-
-    prefsUser.end();
-
-    // apply derived values
-    if (speechLevelIndex < 0) speechLevelIndex = 0;
-    if (speechLevelIndex > 4) speechLevelIndex = 4;
-    SPEECH_VOLUME = SPEECH_LEVELS[speechLevelIndex];
-
-    if (buzzerLevelIndex < 0) buzzerLevelIndex = 0;
-    if (buzzerLevelIndex > 4) buzzerLevelIndex = 4;
-    BUZZER_DUTY = BUZZER_LEVELS[buzzerLevelIndex];
-
-    updateMorseTiming();
-
-    Serial.println("User settings loaded from NVS.");
+void loadUserSettingsFromNVS() {
+  if (!prefsUser.begin("swrSet", true)) {
+    Serial.println("WARN: prefsUser begin (RO) failed");
+    return;
   }
 
-  void saveUserSettingsToNVS() {
-    if (!prefsUser.begin("swrSet", false)) {
-      Serial.println("WARN: prefsUser begin (RW) failed");
-      return;
-    }
-    prefsUser.putUShort("ver", USER_SETTINGS_VERSION);
-    prefsUser.putInt("speechIdx", speechLevelIndex);
-    prefsUser.putInt("buzzIdx", buzzerLevelIndex);
-    prefsUser.putInt("morseBpm", morseBpm);
+  uint16_t ver = prefsUser.getUShort("ver", 0);
+  if (ver != USER_SETTINGS_VERSION) {
     prefsUser.end();
-
-    settingsDirty = false;
-    Serial.println("User settings saved to NVS.");
-    // acoustic feedback: double-beep (abortable)
-    beepCount(2);
+    Serial.printf("User settings version mismatch (have %u, want %u). Resetting to defaults.\n", ver, USER_SETTINGS_VERSION);
+    resetToDefaultUserSettings();
+    // Save defaults back to NVS
+    saveUserSettingsToNVS();
+    return;
   }
+
+  speechLevelIndex = prefsUser.getInt("speechIdx", speechLevelIndex);
+  buzzerLevelIndex = prefsUser.getInt("buzzIdx", buzzerLevelIndex);
+  morseBpm = prefsUser.getInt("morseBpm", morseBpm);
+
+  prefsUser.end();
+
+  // apply derived values
+  if (speechLevelIndex < 0) speechLevelIndex = 0;
+  if (speechLevelIndex > 4) speechLevelIndex = 4;
+  SPEECH_VOLUME = SPEECH_LEVELS[speechLevelIndex];
+
+  if (buzzerLevelIndex < 0) buzzerLevelIndex = 0;
+  if (buzzerLevelIndex > 4) buzzerLevelIndex = 4;
+  BUZZER_DUTY = BUZZER_LEVELS[buzzerLevelIndex];
+
+  updateMorseTiming();
+
+  Serial.println("User settings loaded from NVS.");
+}
+
+void saveUserSettingsToNVS() {
+  if (!prefsUser.begin("swrSet", false)) {
+    Serial.println("WARN: prefsUser begin (RW) failed");
+    return;
+  }
+  prefsUser.putUShort("ver", USER_SETTINGS_VERSION);
+  prefsUser.putInt("speechIdx", speechLevelIndex);
+  prefsUser.putInt("buzzIdx", buzzerLevelIndex);
+  prefsUser.putInt("morseBpm", morseBpm);
+  prefsUser.end();
+
+  settingsDirty = false;
+  Serial.println("User settings saved to NVS.");
+  // acoustic feedback: double-beep (abortable)
+  beepCount(2);
+}
 
 String buildHtmlPage() {
   String page =
@@ -1367,9 +1474,9 @@ String buildHtmlPage() {
   page += String(FW_VERSION);
   page += ", PROGMEM voice)</h1>";
   page += "<p>Last measured values:</p>"
-    "<div class='box'>"
-    "<div class='label'>Output power</div>"
-    "<div class='value' id='powerVal'>";
+          "<div class='box'>"
+          "<div class='label'>Output power</div>"
+          "<div class='value' id='powerVal'>";
   page += String(g_powerW, 1);
   page += " W</div><div class='label'>SWR</div><div class='value' id='swrVal'>";
   page += String(g_swr, 2);
@@ -1486,8 +1593,8 @@ String buildConfigPage(const String &msg) {
   page += "</fieldset>";
 
   // Button ladder ranges
-  page += "<h2 id=\'ladder-range\'>Button ladder ranges ± [V]</h2>";
-  page += "<fieldset><legend>Button ladder ranges ± [V]</legend>";
+  page += "<h2 id=\'ladder-range\'>Button ladder ranges Ã‚Â± [V]</h2>";
+  page += "<fieldset><legend>Button ladder ranges Ã‚Â± [V]</legend>";
   page += "<label>BTN_RANGE_NO<br><input name='BTN_RANGE_NO' value='" + String(BTN_RANGE_NO, 3) + "'></label>";
   page += "<label>BTN_RANGE_T1<br><input name='BTN_RANGE_T1' value='" + String(BTN_RANGE_T1, 3) + "'></label>";
   page += "<label>BTN_RANGE_T2<br><input name='BTN_RANGE_T2' value='" + String(BTN_RANGE_T2, 3) + "'></label>";
@@ -1534,15 +1641,17 @@ String buildCalPage(const String &msg) {
     "th,td{border:1px solid #555;padding:0.25rem;font-size:0.85rem;text-align:center;}"
     "input{width:100%;box-sizing:border-box;padding:0.2rem;background:#222;color:#eee;border:1px solid #555;border-radius:0.3rem;font-size:0.85rem;}"
     "input[readonly]{opacity:0.8;}"
+    "input.filledcell{background:#ffe95c;color:#0047ab;font-weight:700;}"
     "fieldset{border:1px solid #555;margin-bottom:1rem;padding:0.7rem;border-radius:0.5rem;}"
     "legend{padding:0 0.3rem;}"
     ".btn{display:inline-block;padding:0.3rem 0.7rem;border:1px solid #555;border-radius:0.4rem;background:#fff;color:#000;text-decoration:none;margin-right:0.5rem;}"
     "button{font-size:1.0rem;padding:0.4rem 0.8rem;margin-top:0.8rem;}"
+    ".rowbtn{margin-top:0;padding:0.25rem 0.5rem;font-size:0.85rem;}"
     ".msg{margin-bottom:0.7rem;color:#7f7;}"
     ".hint{color:#aaa;font-size:0.9rem;}"
     "</style>"
     "</head><body>"
-    "<h1>SWR Meter Calibration (30 rows)</h1>"
+    "<h1>SWR Meter Calibration (" + String(CAL_ROWS) + " rows)</h1>"
     "<p><a class='btn' href='/'>Back to status</a>"
     "<a class='btn' href='/config'>Configuration</a></p>";
 
@@ -1559,6 +1668,7 @@ String buildCalPage(const String &msg) {
     "<li><b>Pfwd</b>: output / true forward power in W from a reference wattmeter</li>"
     "<li><b>Ufwd</b> and <b>Uref</b>: ESP ADC voltages at the forward and reflected inputs</li>"
     "<li><b>SWR read</b>: reference SWR value (optional, for comparison)</li>"
+    "<li><b>Measure</b>: takes a live ADC measurement and fills Ufwd/Uref in that row</li>"
     "<li><b>SWR calc</b>: calculated from Ufwd/Uref using the currently stored calibration curves</li>"
     "</ul>";
 
@@ -1581,7 +1691,7 @@ String buildCalPage(const String &msg) {
           "<th>#</th>"
           "<th>Pfwd [W]</th><th>Ufwd [V]</th>"
           "<th>Uref [V]</th>"
-          "<th>SWR read</th><th>SWR calc</th>"
+          "<th>SWR read</th><th>Measure</th><th>Clear</th><th>SWR calc</th>"
           "</tr>";
 
   for (int i = 0; i < CAL_ROWS; i++) {
@@ -1597,6 +1707,8 @@ String buildCalPage(const String &msg) {
     page += "<td><input name='Uf" + String(i) + "' value='" + String(calRows[i].Ufwd_V, 3) + "'></td>";
     page += "<td><input name='Ur" + String(i) + "' value='" + String(calRows[i].Uref_V, 3) + "'></td>";
     page += "<td><input name='Sr" + String(i) + "' value='" + String(calRows[i].Swr_read, 2) + "'></td>";
+    page += "<td><button type='button' class='rowbtn' onclick='captureRow(" + String(i) + ",this)'>Measure</button></td>";
+    page += "<td><button type='button' class='rowbtn' onclick='clearRow(" + String(i) + ")'>Clear</button></td>";
 
     // Calculated SWR is read-only (updated by JS too)
     page += "<td><input readonly id='Sc" + String(i) + "' value='" + String(swr_calc, 2) + "'></td>";
@@ -1607,18 +1719,20 @@ String buildCalPage(const String &msg) {
   page += "</table>";
   page += "</fieldset>";
 
-  page += "<button type='submit'>Save calibration</button>";
+  page += "<button type='submit'>Save calibration</button> ";
+  page += "<button type='button' onclick='confirmClearAllMeasure()'>Clear all Pfwd/Ufwd/Uref</button>";
   page += "</form>";
   page += "<div style='height:0.9rem'></div>";
 
-  // Backup / restore calibration (JSON)
+  // Backup / restore calibration (CSV + JSON)
   page += "<h2 id=\'backup\'>Backup / Restore</h2>";
   page += "<fieldset><legend>Backup / Restore</legend>";
-  page += "<a class='btn' id='exportCal' href='/cal/export'>Export calibration (JSON)</a>";
-  page += "<div class='hint' style='margin-top:0.4rem'>Export creates a JSON file you can archive on your PC. Import replaces the current calibration and rebuilds the derived curves.</div>";
+  page += "<a class='btn' id='exportCalCsv' href='/cal/export.csv'>Export calibration (CSV)</a> ";
+  page += "<a class='btn' id='exportCalJson' href='/cal/export'>Export calibration (JSON)</a>";
+  page += "<div class='hint' style='margin-top:0.4rem'>CSV is optimized for spreadsheet editing. Import accepts CSV or JSON and replaces the current calibration before rebuilding the derived curves.</div>";
   page += "<div style='height:0.6rem'></div>";
   page += "<form method='POST' action='/cal/import' enctype='multipart/form-data'>";
-  page += "<input type='file' name='calfile' accept='.json,application/json' required> ";
+  page += "<input type='file' name='calfile' accept='.csv,text/csv,.json,application/json' required> ";
   page += "<button type='submit'>Import calibration</button>";
   page += "</form>";
   page += "</fieldset>";
@@ -1636,22 +1750,81 @@ String buildCalPage(const String &msg) {
           "let s=(1+g)/(1-g);"
           "return clipSWR(s);"
           "}"
+          "function isFilledValue(v){"
+          "const t=(v||'').trim();"
+          "if(t==='') return false;"
+          "const n=parseFloat(t);"
+          "if(!isNaN(n)) return Math.abs(n)>1e-9;"
+          "return true;"
+          "}"
+          "function markFilled(el){"
+          "if(!el) return;"
+          "el.classList.toggle('filledcell',isFilledValue(el.value));"
+          "}"
           "function hookRow(i){"
+          "const pf=document.querySelector(`[name='Pf${i}']`);"
           "const uf=document.querySelector(`[name='Uf${i}']`);"
           "const ur=document.querySelector(`[name='Ur${i}']`);"
+          "const sr=document.querySelector(`[name='Sr${i}']`);"
           "const out=document.getElementById(`Sc${i}`);"
-          "function upd(){out.value=calcSWRfromU(toNum(uf.value),toNum(ur.value)).toFixed(2);}"
+          "function upd(){"
+          "out.value=calcSWRfromU(toNum(uf.value),toNum(ur.value)).toFixed(2);"
+          "markFilled(pf);"
+          "markFilled(uf);"
+          "markFilled(ur);"
+          "markFilled(sr);"
+          "}"
+          "pf.addEventListener('input',upd);"
           "uf.addEventListener('input',upd);"
           "ur.addEventListener('input',upd);"
+          "sr.addEventListener('input',upd);"
+          "upd();"
+          "}"
+          "function clearRow(i){"
+          "const pf=document.querySelector(`[name='Pf${i}']`);"
+          "const uf=document.querySelector(`[name='Uf${i}']`);"
+          "const ur=document.querySelector(`[name='Ur${i}']`);"
+          "if(pf) pf.value='';"
+          "if(uf){uf.value=''; uf.dispatchEvent(new Event('input'));}"
+          "if(ur){ur.value=''; ur.dispatchEvent(new Event('input'));}"
+          "}"
+          "function clearAllMeasure(){"
+          "for(let i=0;i<" + String(CAL_ROWS) + ";i++){ clearRow(i); }"
+          "}"
+          "function confirmClearAllMeasure(){"
+          "if(window.confirm('Clear all Pfwd, Ufwd and Uref values?')) clearAllMeasure();"
+          "}"
+          "async function captureRow(i,btn){"
+          "const uf=document.querySelector(`[name='Uf${i}']`);"
+          "const ur=document.querySelector(`[name='Ur${i}']`);"
+          "const old=btn.textContent;"
+          "btn.disabled=true;"
+          "btn.textContent='Measuring...';"
+          "try{"
+          "const r=await fetch(`/cal/capture?row=${i}`,{cache:'no-store'});"
+          "if(!r.ok) throw new Error(`HTTP ${r.status}`);"
+          "const data=await r.json();"
+          "if(!data.ok) throw new Error(data.error||'Measurement failed');"
+          "uf.value=Number(data.ufwd).toFixed(3);"
+          "ur.value=Number(data.uref).toFixed(3);"
+          "uf.dispatchEvent(new Event('input'));"
+          "ur.dispatchEvent(new Event('input'));"
+          "btn.textContent='Captured';"
+          "setTimeout(()=>{btn.textContent=old;btn.disabled=false;},800);"
+          "}catch(err){"
+          "alert('Measurement failed: '+err.message);"
+          "btn.textContent=old;"
+          "btn.disabled=false;"
+          "}"
           "}";
   page += "for(let i=0;i<" + String(CAL_ROWS) + ";i++)hookRow(i);";
-  page += "const ex=document.getElementById('exportCal');"
-          "if(ex){"
+  page += "const exCsv=document.getElementById('exportCalCsv');"
+          "const exJson=document.getElementById('exportCalJson');"
           "const d=new Date();"
           "const pad=(n)=>String(n).padStart(2,'0');"
           "const ts=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;"
-          "ex.href=`/cal/export?ts=${ts}`;"
-          "}";
+          "if(exCsv){exCsv.href=`/cal/export.csv?ts=${ts}`;}"
+          "if(exJson){exJson.href=`/cal/export?ts=${ts}`;}";
   page += "</script>";
 
   page += "</body></html>";
@@ -1691,6 +1864,51 @@ void handleConfig() {
 
 void handleCal() {
   server.send(200, "text/html", buildCalPage(""));
+}
+
+void handleCalCapture() {
+  if (!server.hasArg("row")) {
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"Missing row\"}");
+    return;
+  }
+
+  int row = server.arg("row").toInt();
+  if (row < 0 || row >= CAL_ROWS) {
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"Row out of range\"}");
+    return;
+  }
+
+  float ufwd = readAveragedVoltage(PIN_FWD);
+  float uref = readAveragedVoltage(PIN_REV);
+  float pfwd = voltageToPowerTable(ufwd, calFwdU, calFwdP, calFwdN, calibrationFwdValid, A_FWD, B_FWD);
+  float prev = voltageToPowerTable(uref, calRevU, calRevP, calRevN, calibrationRevValid, A_REV, B_REV);
+  float swr = (pfwd < P_MIN_ACTIVE) ? 1.0f : calcSWR(pfwd, prev);
+
+  Serial.print("Calibration capture row ");
+  Serial.print(row + 1);
+  Serial.print(": Ufwd[V]=");
+  Serial.print(ufwd, 3);
+  Serial.print(" Uref[V]=");
+  Serial.print(uref, 3);
+  Serial.print(" P_fwd[W]=");
+  Serial.print(pfwd, 2);
+  Serial.print(" SWR_calc=");
+  Serial.println(swr, 2);
+
+  String json = "{";
+  json += "\"ok\":true";
+  json += ",\"row\":";
+  json += String(row);
+  json += ",\"ufwd\":";
+  json += String(ufwd, 4);
+  json += ",\"uref\":";
+  json += String(uref, 4);
+  json += ",\"pfwd_calc\":";
+  json += String(pfwd, 3);
+  json += ",\"swr_calc\":";
+  json += String(swr, 3);
+  json += "}";
+  server.send(200, "application/json", json);
 }
 
 void handleSaveConfig() {
@@ -1807,13 +2025,13 @@ void handleSaveCal() {
   } else if (!calibrationFwdValid && calibrationRevValid) {
     msg = "Calibration saved. Reverse curve active, forward uses fallback (FWD needs >= 3 valid points).";
   } else {
-    msg = "Calibration saved, but not enough valid points (need >= 3 per direction) – fallback active.";
+    msg = "Calibration saved, but not enough valid points (need >= 3 per direction) Ã¢â‚¬â€œ fallback active.";
   }
 
   server.send(200, "text/html", buildCalPage(msg));
 }
 
-// --- Calibration Export / Import (Option A: JSON via Web UI) ---
+// --- Calibration Export / Import (CSV + JSON via Web UI) ---
 
 // Helper: extract a float value for a given key from a JSON object string.
 static float jsonGetFloat(const String &obj, const char *key, float defVal) {
@@ -1836,6 +2054,130 @@ static float jsonGetFloat(const String &obj, const char *key, float defVal) {
   }
   if (e <= p) return defVal;
   return obj.substring(p, e).toFloat();
+}
+
+
+static String trimCopy(const String &s) {
+  int start = 0;
+  int end = (int)s.length();
+  while (start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\r' || s[start] == '\n')) start++;
+  while (end > start && (s[end - 1] == ' ' || s[end - 1] == '\t' || s[end - 1] == '\r' || s[end - 1] == '\n')) end--;
+  return s.substring(start, end);
+}
+
+static int splitCsvLine(const String &line, char delim, String *outCols, int maxCols) {
+  int count = 0;
+  String cur;
+  bool inQuotes = false;
+
+  for (int i = 0; i < (int)line.length(); i++) {
+    char c = line[i];
+    if (c == '"') {
+      if (inQuotes && i + 1 < (int)line.length() && line[i + 1] == '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c == delim && !inQuotes) {
+      if (count < maxCols) outCols[count] = trimCopy(cur);
+      count++;
+      cur = "";
+    } else {
+      cur += c;
+    }
+  }
+
+  if (count < maxCols) outCols[count] = trimCopy(cur);
+  count++;
+  return count;
+}
+
+static float parseCsvFloatField(String s) {
+  s = trimCopy(s);
+  s.replace("\"", "");
+  s.replace(" ", "");
+  s.replace(',', '.');
+  return s.toFloat();
+}
+
+static bool parseCalibrationCsv(const String &csv, String &err) {
+  memset(calRows, 0, sizeof(calRows));
+
+  int row = 0;
+  char delim = 0;
+  int pos = 0;
+  bool sawData = false;
+
+  while (pos <= (int)csv.length()) {
+    int end = csv.indexOf('\n', pos);
+    if (end < 0) end = csv.length();
+    String line = csv.substring(pos, end);
+    line.replace("\r", "");
+    line = trimCopy(line);
+    pos = end + 1;
+
+    if (line.length() == 0) continue;
+    if (line.startsWith("sep=") || line.startsWith("SEP=")) continue;
+    if (line.startsWith("#")) continue;
+
+    if (delim == 0) {
+      int semis = 0;
+      int commas = 0;
+      for (int i = 0; i < (int)line.length(); i++) {
+        if (line[i] == ';') semis++;
+        else if (line[i] == ',') commas++;
+      }
+      delim = (semis > 0) ? ';' : ',';
+    }
+
+    String cols[8];
+    int colCount = splitCsvLine(line, delim, cols, 8);
+    if (colCount < 4) continue;
+
+    String c0 = trimCopy(cols[0]);
+    String c1 = trimCopy(cols[1]);
+    String c2 = trimCopy(cols[2]);
+    String c3 = trimCopy(cols[3]);
+
+    bool headerLike = false;
+    for (int i = 0; i < (int)c0.length(); i++) {
+      char ch = c0[i];
+      if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) {
+        headerLike = true;
+        break;
+      }
+    }
+    if (headerLike) continue;
+
+    if (row >= CAL_ROWS) break;
+
+    calRows[row].Pfwd_W = parseCsvFloatField(c0);
+    calRows[row].Ufwd_V = parseCsvFloatField(c1);
+    calRows[row].Uref_V = parseCsvFloatField(c2);
+    calRows[row].Swr_read = parseCsvFloatField(c3);
+
+    if (calRows[row].Pfwd_W < 0.0f) calRows[row].Pfwd_W = 0.0f;
+    if (calRows[row].Ufwd_V < 0.0f) calRows[row].Ufwd_V = 0.0f;
+    if (calRows[row].Uref_V < 0.0f) calRows[row].Uref_V = 0.0f;
+    if (calRows[row].Swr_read < 0.0f) calRows[row].Swr_read = 0.0f;
+
+    if (calRows[row].Pfwd_W > 0.0f || calRows[row].Ufwd_V > 0.0f || calRows[row].Uref_V > 0.0f || calRows[row].Swr_read > 0.0f) {
+      sawData = true;
+    }
+
+    row++;
+  }
+
+  if (!sawData) {
+    err = "CSV contains no calibration rows.";
+    return false;
+  }
+
+  applyDefaultPfwdPresetsIfEmpty();
+  rebuildDerivedCalibrationTables();
+  saveCalibrationToNVS();
+  return true;
 }
 
 static bool parseCalibrationJson(const String &json, String &err) {
@@ -1940,35 +2282,72 @@ void handleCalExport() {
   server.send(200, "application/json", out);
 }
 
+void handleCalExportCsv() {
+  String out;
+  out.reserve(4096);
+
+  out += "sep=;\n";
+  out += "Pfwd_W;Ufwd_V;Uref_V;SWR_read\n";
+
+  for (int i = 0; i < CAL_ROWS; i++) {
+    const CalRow &r = calRows[i];
+    bool nonEmpty = (r.Pfwd_W != 0.0f) || (r.Ufwd_V != 0.0f) || (r.Uref_V != 0.0f) || (r.Swr_read != 0.0f);
+    if (!nonEmpty) continue;
+
+    String line = String(r.Pfwd_W, 3) + ";" + String(r.Ufwd_V, 4) + ";" + String(r.Uref_V, 4) + ";" + String(r.Swr_read, 3);
+    line.replace('.', ',');
+    out += line + "\n";
+  }
+
+  String ts = server.hasArg("ts") ? server.arg("ts") : String("unknown");
+  ts.replace("\\", "");
+  ts.replace("\"", "");
+  ts.replace("..", "");
+  ts.replace("/", "");
+  ts.replace(" ", "");
+  String fname = "SWR_Calibration_" + ts + ".csv";
+  server.sendHeader("Content-Disposition", "attachment; filename=\"" + fname + "\"");
+  server.send(200, "text/csv; charset=utf-8", out);
+}
+
 void handleCalImportUpload() {
   HTTPUpload &upload = server.upload();
   if (upload.status == UPLOAD_FILE_START) {
     g_calImportBuf = "";
     g_calImportBuf.reserve(8192);
   } else if (upload.status == UPLOAD_FILE_WRITE) {
-    // Append incoming chunk (text JSON)
+    // Append incoming chunk (text CSV or JSON)
     g_calImportBuf.concat((const char *)upload.buf, upload.currentSize);
   }
 }
 
 void handleCalImport() {
-  String json;
+  String body;
 
-  // Prefer multipart upload buffer; fall back to raw body (application/json)
+  // Prefer multipart upload buffer; fall back to raw body.
   if (g_calImportBuf.length() > 0) {
-    json = g_calImportBuf;
+    body = g_calImportBuf;
     g_calImportBuf = "";
   } else if (server.hasArg("plain")) {
-    json = server.arg("plain");
+    body = server.arg("plain");
   }
 
-  if (json.length() < 10) {
+  if (body.length() < 10) {
     server.send(400, "text/html", buildCalPage("Import failed: empty file/body."));
     return;
   }
 
+  String trimmed = trimCopy(body);
   String err;
-  if (!parseCalibrationJson(json, err)) {
+  bool ok = false;
+
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    ok = parseCalibrationJson(body, err);
+  } else {
+    ok = parseCalibrationCsv(body, err);
+  }
+
+  if (!ok) {
     server.send(400, "text/html", buildCalPage("Import failed: " + err));
     return;
   }
@@ -2140,6 +2519,7 @@ void handleButtonEvent(uint8_t button, bool isShort) {
     if (isShort) {
       morseBpm -= STEP_MORSE_BPM;
       updateMorseTiming();
+      markSettingsDirty();
     } else {
       morseBpm = DEFAULT_MORSE_BPM;
       updateMorseTiming();
@@ -2153,6 +2533,7 @@ void handleButtonEvent(uint8_t button, bool isShort) {
     if (isShort) {
       morseBpm += STEP_MORSE_BPM;
       updateMorseTiming();
+      markSettingsDirty();
     } else {
       morseBpm = DEFAULT_MORSE_BPM;
       updateMorseTiming();
@@ -2174,7 +2555,7 @@ void setup() {
   delay(1000);
 
   Serial.println();
-  Serial.println("=== ESP32-S3 SWR Meter V5.4.0: UX+A11Y+mDNS+Prefs+AudioEq (PROGMEM voice) ===");
+  Serial.println("=== ESP32-S3 SWR Meter V5.5: UX+A11Y+mDNS+Prefs+AudioEq (PROGMEM voice) ===");
 
   // Load defaults
   resetConfigToDefaults();
@@ -2241,7 +2622,9 @@ void setup() {
   server.on("/factoryReset", HTTP_POST, handleFactoryReset);
   server.on("/resetSettings", HTTP_POST, handleResetSettings);
   server.on("/cal", handleCal);
+  server.on("/cal/capture", HTTP_GET, handleCalCapture);
   server.on("/cal/export", HTTP_GET, handleCalExport);
+  server.on("/cal/export.csv", HTTP_GET, handleCalExportCsv);
   server.on("/cal/import", HTTP_POST, handleCalImport, handleCalImportUpload);
   server.on("/saveCal", HTTP_POST, handleSaveCal);
   server.onNotFound(handleNotFound);
@@ -2254,7 +2637,7 @@ void setup() {
   Serial.println("T3: buzzer volume (5 steps), T4: speech volume (5 steps).");
   Serial.println("T5/T6: Morse speed control.");
 
-  // Startup “OK” in Morse at 20 WPM
+  // Startup Ã¢â‚¬Å“OKÃ¢â‚¬Â in Morse at 20 WPM
   playStartupOK();
 }
 
