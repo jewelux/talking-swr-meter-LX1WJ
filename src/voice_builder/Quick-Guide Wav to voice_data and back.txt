@@ -1,0 +1,126 @@
+Quick Guide: WAV to voice_data.h and back
+
+Project:
+Talking SWR Meter LX1WJ
+
+Purpose
+-------
+This folder contains the helper scripts and source audio files used to build
+`voice_data.h` for the ESP32 sketch, and to recover WAV files again from an
+existing `voice_data.h`.
+
+
+1. Required voice files
+-----------------------
+The sketch uses these spoken clips:
+
+- voice_zero.wav
+- voice_one.wav
+- voice_two.wav
+- voice_three.wav
+- voice_four.wav
+- voice_five.wav
+- voice_six.wav
+- voice_seven.wav
+- voice_eight.wav
+- voice_nine.wav
+- voice_point.wav
+- voice_power.wav
+- voice_watts.wav
+- voice_swr.wav
+
+
+2. Audio format
+---------------
+The sketch expects audio in this format:
+
+- mono
+- 16-bit PCM
+- 16 kHz
+
+The recommended generator script converts the WAV input automatically to this
+target format.
+
+
+3. Create voice_data.h from WAV files
+-------------------------------------
+Recommended script:
+
+- `generate_voice_data_v16KHz.py`
+
+Recommended source folder example:
+
+- `anonymous`
+
+Install Python packages once:
+
+```powershell
+pip install numpy soundfile
+```
+
+Go to the folder that contains the WAV files and the script:
+
+```powershell
+cd C:\Users\User\Documents\......\talking-swr-meter-LX1WJ\src\voice_builder\anonymous
+```
+
+Run the script:
+
+```powershell
+python .\generate_voice_data_v16KHz.py .
+```
+
+Result:
+
+- A new `voice_data.h` is created in the current folder.
+- The script forces mono, converts to 16-bit PCM and resamples to 16 kHz.
+
+If you want to use the generated file in the main project, copy it to:
+
+- `C:\Users\User\Documents\.......\talking-swr-meter-LX1WJ\src\voice_data.h`
+
+
+4. Recover WAV files from an existing voice_data.h
+--------------------------------------------------
+Recovery script:
+
+- `extract_wavs_from_voice_data.py`
+
+Example folder:
+
+- `anonymous`
+
+Go to the folder that contains `voice_data.h` and the extractor script:
+
+```powershell
+cd C:\Users\User\Documents\......\talking-swr-meter-LX1WJ\src\voice_builder\anonymous
+```
+
+Run the script:
+
+```powershell
+python .\extract_wavs_from_voice_data.py
+```
+
+Result:
+
+- All contained `voice_*.wav` files are written to the same folder.
+- The recovered WAV files are written as mono, 16-bit PCM, 16 kHz.
+
+
+5. Which script should be used?
+-------------------------------
+Use:
+
+- `generate_voice_data_v16KHz.py`
+
+
+
+6. Notes
+--------
+- The main sketch currently uses only the clips listed above.
+- Numbers are spoken by combining digit clips, not by using full words such as
+  "twenty" or "thirty".
+- If a WAV file has a different sample rate, the generator script resamples it.
+- If Python is not installed on the PC, install Python first before running the
+  scripts.

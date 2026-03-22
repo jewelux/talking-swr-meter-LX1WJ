@@ -46,7 +46,7 @@ This project is provided **for experimental and educational use only**, **AS IS*
 - 12 V supply (and regulators as needed)
 
 ## Quick start
-1. Flash firmware `src/Talking_SWRMeter_V5_5.ino` to the ESP32-S3 with `voice_data.h`.
+1. Flash firmware `src/Talking_SWRMeter_LX1WJ.ino` to the ESP32-S3 with `voice_data.h`.
 2. Power on: the device starts a Wi-Fi access point named `SWR-Meter-S3-FW 5.5`.
 3. Connect with phone or PC and open: `http://192.168.4.1/`
 4. Use T1/T2 for Morse or speech measurement.
