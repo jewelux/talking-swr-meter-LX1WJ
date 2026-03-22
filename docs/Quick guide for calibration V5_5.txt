@@ -5,6 +5,6 @@ Quick guide for calibration of the Talking SWR Meter LX1WJ V5_5
 - Enter these values directly into the calibration table of the Talking SWR Meter LX1WJ.
 - Pfwd [W] = real measured power
 - SWR read = measured SWR
-- Capture Ufwd [V] and Uref [V] with the Measure button.
+- Capture Ufwd [V] and Uref [V] with the Measure button when tuning.
   These are the voltages measured by the microcontroller.
 - Save the calibration table and export it if needed.
