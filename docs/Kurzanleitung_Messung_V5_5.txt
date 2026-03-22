@@ -1,79 +1,10 @@
-Kurzanleitung fuer die Kalibrierung des Talking SWR-Meters-LX1WJ V5_5
+Quick guide for calibration of the Talking SWR Meter LX1WJ V5_5
 
-Es gibt zwei Messarten.
-
-1. Messung normal
-- Ein gutes Referenz-Stehwellen- und Leistungsmessgeraet verwenden.
-- Leistung und SWR direkt ablesen.
-- Diese Werte direkt in die Kalibriertabelle des Talking SWR-Meters-LX1WJ eintragen.
-- Pfwd [W] = echte gemessene Leistung
-- SWR read = gemessenes SWR
-- Ufwd [V] und Uref [V] mit dem Measure-Button aufnehmen,
-  es sind die jeweiligen Spannungen die der Microcontroller misst.
-- Kalibriertabelle speichern, bei Bedarf exportieren.
-
-2. Messung ueber Spannungsmessung am Dummyload
-
-Messaufbau:
-TX - SWR-Bruecke des Talking SWR-Meters - Stehwellenmesser - Tuner - Dummyload
-Oszilloskop mit 10x Tastkopf
-
-Vorbereitung:
-- Datei SWR_Kalibrierung.xlsx oeffnen
-- Mit dem AP des Talking SWR-Meters verbinden
-- Webseite auf http://192.168.4.1 oeffnen
-- SWR-Minimum einstellen, z. B. Dummyload ohne Tuner
-
-Grundidee:
-- Zuerst Leistungs-Referenzmessungen direkt am Dummyload
-- Danach Messungen bei hoeherem SWR
-- Die echte Leistung wird aus Vpp berechnet oder aus Sheet 1 interpoliert
-
-Sheet 1
-- Messungen Nr. 1 bis 26
-- B = vorgeschlagene Leistung
-- C = zB Daiwa-Wert
-- D = Vpp
-- E = richtige Leistung
-- F = SWR
-- Bei diesen Messungen ist SWR 1.1
-- Fuer jede Messung:
-  1. ungefaehre Leistung einstellen
-  2. zB Daiwa-Wert in C eintragen
-  3. Vpp in D eintragen
-  4. richtige Leistung aus E ablesen
-
-Sheet 2
-- Messungen Nr. 27 bis 66
-- B = vorgeschlagene Leistung
-- C = zB Daiwa-Wert
-- D = interpolierte genaue Leistung
-- E = SWR
-- Nur den zB Daiwa-Wert in C eintragen
-- Die genaue Leistung erscheint in D
-
-SWR-Stufen in Sheet 2:
-- 1.5
-- 2.0
-- 3.0
-- 4.0
-- 5.0
-- 7.5
-- 9.9
-
-Eintragen in die Kalibrierseite des V5_5:
-- Pfwd [W] = berechneter Wert aus Excel
-  Sheet 1 aus Spalte E
-  Sheet 2 aus Spalte D
-- SWR read = am Daiwa abgelesenes SWR
-- Ufwd [V] und Uref [V] mit Measure aufnehmen
-- Zeilen-Clear loescht Pfwd, Ufwd und Uref in einer Zeile
-- Globaler Clear loescht alle Pfwd, Ufwd und Uref nach Rueckfrage
-- SWR read bleibt erhalten
-- Danach Save calibration druecken
-
-Wichtig:
-- Die zB Daiwa-Anzeige ist bei der Spannungsmessmethode nur die Arbeitsgrundlage
-- Der Endwert fuer Pfwd ist immer der berechnete Wert aus Excel
-- Im unteren Leistungsbereich besonders sorgfaeltig messen
-- Unplausible Werte lieber erneut messen
+- Use a good reference SWR and power meter.
+- Read power and SWR directly from the reference instrument.
+- Enter these values directly into the calibration table of the Talking SWR Meter LX1WJ.
+- Pfwd [W] = real measured power
+- SWR read = measured SWR
+- Capture Ufwd [V] and Uref [V] with the Measure button.
+  These are the voltages measured by the microcontroller.
+- Save the calibration table and export it if needed.
