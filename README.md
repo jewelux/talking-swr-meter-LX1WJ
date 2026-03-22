@@ -55,7 +55,11 @@ This project is provided **for experimental and educational use only**, **AS IS*
 
 ## Documentation
 - **Detailed operating guide:** [USAGE.md](USAGE.md)
+<<<<<<< HEAD
 - **Calibration quick guide:** [docs/Quick guide for calibration V5_5.txt](docs/Quick%20guide%20for%20calibration%20V5_5.txt)
+=======
+- **Calibration quick guide:** [docs/Quick guide for calibration V5_5.txt](docs/Quick guide for calibration V5_5.txt)
+>>>>>>> 944b8c30752a5f102e06e29ec79d91477b1660c1
 - **Bill of materials:** [docs/bom-V5_5.txt](docs/bom-V5_5.txt)
 - **Principle and wiring overview:** [docs/talking-swr-meter-principle-V5_5.txt](docs/talking-swr-meter-principle-V5_5.txt)
 - Additional reference material: `docs/`
