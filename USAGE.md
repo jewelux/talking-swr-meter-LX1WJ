@@ -110,7 +110,7 @@ Two practical calibration methods are supported:
    - Use **Measure** on the corresponding row to capture `Ufwd [V]` and `Uref [V]`.
 
 2. **Dummy load + voltage measurement**
-   - Use the worksheet described in `docs/Kurzanleitung_Messung_V5_5.txt`.
+   - Use the worksheet described in `docs/Quick guide for calibration V5_5.txt`.
    - Derive the real forward power from the worksheet.
    - Enter that real value into `Pfwd [W]`.
    - Enter the measured SWR into `SWR read`.
